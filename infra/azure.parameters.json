@@ -3,19 +3,28 @@
     "contentVersion": "1.0.0.0",
     "parameters": {
       "resourceBaseName": {
-        "value": "bot${{RESOURCE_SUFFIX}}"
+        "value": "${AZURE_ENV_NAME}"
+      },
+      "location": {
+        "value": "${AZURE_LOCATION=eastus}"
       },
       "botAadAppClientId": {
-        "value": "${{AAD_APP_CLIENT_ID}}"
+        "value": "${botAadAppClientId}"
+      },
+      "botAadAppClientSecret": {
+        "value": "${botAadAppClientSecret}"
       },
       "botAadAppTenantId": {
-        "value": "${{AAD_APP_TENANT_ID}}"
-      },
-      "botAppDomain": {
-        "value": "${{BOT_DOMAIN}}"
+        "value": "${botAadAppTenantId}"
       },
       "botDisplayName": {
         "value": "TeamsConversationBot"
+      },
+      "botServiceSku": {
+        "value": "${BOT_SERVICE_SKU=S1}"
+      },
+      "appServicePlanSku": {
+        "value": "${APP_SERVICE_PLAN_SKU=B1}"
       }
     }
   }

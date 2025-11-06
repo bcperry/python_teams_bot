@@ -1,0 +1,16 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+
+name: python-teams-bot
+metadata:
+  template: python-teams-bot@0.0.1-beta
+
+services:
+  api:
+    project: .
+    language: py
+    host: appservice
+    
+infra:
+  provider: bicep
+  path: infra
+  module: azure

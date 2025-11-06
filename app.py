@@ -2,6 +2,7 @@
 # Licensed under the MIT License.
 
 import sys
+import os
 import traceback
 import logging
 from datetime import datetime
@@ -88,6 +89,9 @@ async def messages(req: Request) -> Response:
 
 if __name__ == "__main__":
     try:
-        uvicorn.run(app, host="localhost", port=CONFIG.PORT)
+        # Use 0.0.0.0 to bind to all interfaces (required for Azure App Service)
+        # Use localhost for local development
+        host = "0.0.0.0" if os.environ.get("WEBSITE_SITE_NAME") else "localhost"
+        uvicorn.run(app, host=host, port=CONFIG.PORT)
     except Exception as error:
         raise error

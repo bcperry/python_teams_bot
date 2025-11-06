@@ -1,3 +1,5 @@
+targetScope = 'subscription'
+
 @maxLength(20)
 @minLength(4)
 @description('Used to generate names for all resources in this file')
@@ -6,39 +8,62 @@ param resourceBaseName string
 @description('Required when create Azure Bot service')
 param botAadAppClientId string
 
-param botAadAppTenantId string
+@secure()
+@description('Required when create Azure Bot service')
+param botAadAppClientSecret string
 
-param botAppDomain string
+@minLength(36)
+@maxLength(36)
+@description('Tenant that owns the Bot AAD app')
+param botAadAppTenantId string
 
 @maxLength(42)
 param botDisplayName string
 
+param location string = 'eastus'
+
 param botServiceName string = resourceBaseName
 param botServiceSku string = 'F0'
 
-// Register your web service as a bot with the Bot Framework
-resource botService 'Microsoft.BotService/botServices@2021-03-01' = {
-  kind: 'azurebot'
-  location: 'global'
-  name: botServiceName
-  properties: {
-    displayName: botDisplayName
-    endpoint: 'https://${botAppDomain}/api/messages'
-    msaAppId: botAadAppClientId
-    msaAppType: 'SingleTenant'
-    msaAppTenantId: botAadAppTenantId
-  }
-  sku: {
-    name: botServiceSku
+@description('App Service SKU')
+param appServicePlanSku string = 'B1'
+
+// Variables
+var resourceGroupName = 'rg-${resourceBaseName}'
+var appServicePlanName = 'plan-${resourceBaseName}'
+var appServiceName = 'app-${resourceBaseName}'
+var appServiceDomainSuffix = environment().suffixes.storage == 'core.usgovcloudapi.net' ? 'azurewebsites.us' : 'azurewebsites.net'
+var botAppDomain = '${appServiceName}.${appServiceDomainSuffix}'
+
+// Resource Group
+resource resourceGroup 'Microsoft.Resources/resourceGroups@2021-04-01' = {
+  name: resourceGroupName
+  location: location
+}
+
+// Deploy resources into the resource group
+module resources 'resources.bicep' = {
+  name: 'resources-deployment'
+  scope: resourceGroup
+  params: {
+    location: location
+    resourceBaseName: resourceBaseName
+    appServicePlanName: appServicePlanName
+    appServicePlanSku: appServicePlanSku
+    appServiceName: appServiceName
+    botServiceName: botServiceName
+    botServiceSku: botServiceSku
+    botDisplayName: botDisplayName
+    botAadAppClientId: botAadAppClientId
+    botAadAppClientSecret: botAadAppClientSecret
+    botAadAppTenantId: botAadAppTenantId
+    botAppDomain: botAppDomain
   }
 }
 
-// Connect the bot service to Microsoft Teams
-resource botServiceMsTeamsChannel 'Microsoft.BotService/botServices/channels@2021-03-01' = {
-  parent: botService
-  location: 'global'
-  name: 'MsTeamsChannel'
-  properties: {
-    channelName: 'MsTeamsChannel'
-  }
-}
+// Outputs
+output AZURE_LOCATION string = location
+output AZURE_RESOURCE_GROUP string = resourceGroupName
+output APP_SERVICE_NAME string = appServiceName
+output BOT_DOMAIN string = botAppDomain
+output BOT_ENDPOINT string = 'https://${botAppDomain}/api/messages'
