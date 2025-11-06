@@ -25,7 +25,17 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[logging.StreamHandler(sys.stdout)],
+    force=True,  # Force reconfiguration even if logging is already configured
 )
+
+# Also set the root logger level and configure uvicorn loggers
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+# Configure uvicorn and fastapi loggers to show INFO level
+logging.getLogger("uvicorn").setLevel(logging.INFO)
+logging.getLogger("uvicorn.access").setLevel(logging.INFO)
+logging.getLogger("fastapi").setLevel(logging.INFO)
 
 CONFIG = DefaultConfig()
 
