@@ -12,7 +12,7 @@ from botbuilder.schema import CardAction, HeroCard, Mention, Activity
 from botbuilder.schema.teams import TeamInfo, TeamsChannelAccount
 from botbuilder.schema._connector_client_enums import ActionTypes
 
-from agent_framework import MCPStreamableHTTPTool, MCPStdioTool
+from agent_framework import MCPStreamableHTTPTool
 from agent_framework.openai import OpenAIChatClient
 
 # Configure logger
@@ -34,6 +34,8 @@ llm = OpenAIChatClient(
     base_url="http://ollama.home/v1",
     model_id="gpt-oss:20b",
 )
+
+
 agent = llm.create_agent(
     name="test_agent",
     instructions="You are a helpful agent. You use Model Context Protocol (MCP) tools to answer user questions. "
@@ -41,6 +43,9 @@ agent = llm.create_agent(
     "Provided to you in the prompt.",
     tools=[tool],
 )
+
+thread = agent.get_new_thread()
+
 
 class TeamsConversationBot(TeamsActivityHandler):
     conversation_references = {}
@@ -56,7 +61,9 @@ class TeamsConversationBot(TeamsActivityHandler):
         team_info: TeamInfo,
         turn_context: TurnContext,
     ):
-        logger.info("New members added to team: %s", [m.name for m in teams_members_added])
+        logger.info(
+            "New members added to team: %s", [m.name for m in teams_members_added]
+        )
         for member in teams_members_added:
             if member.id != turn_context.activity.recipient.id:
                 await turn_context.send_activity(
@@ -66,11 +73,14 @@ class TeamsConversationBot(TeamsActivityHandler):
     async def on_message_activity(self, turn_context: TurnContext):
         TurnContext.remove_recipient_mention(turn_context.activity)
         text = turn_context.activity.text.strip().lower()
-        
-        logger.info("Received message: '%s' from user: %s", 
-                   text, 
-                   turn_context.activity.from_property.name if turn_context.activity.from_property else "Unknown")
 
+        logger.info(
+            "Received message: '%s' from user: %s",
+            text,
+            turn_context.activity.from_property.name
+            if turn_context.activity.from_property
+            else "Unknown",
+        )
 
         if "mention me" in text:
             logger.debug("Handling 'mention me' command")
@@ -118,7 +128,7 @@ class TeamsConversationBot(TeamsActivityHandler):
             return
 
         logger.info("Passing message to agent: '%s'", text)
-        result = await agent.run(text)
+        result = await agent.run(text, thread=thread)
         logger.info("Agent response: '%s'", result.text)
         reply_activity = MessageFactory.text(result.text)
 
@@ -133,7 +143,10 @@ class TeamsConversationBot(TeamsActivityHandler):
             logger.debug("Retrieved member info for adaptive card: %s", member.name)
         except Exception as e:
             if "MemberNotFoundInConversation" in e.args[0]:
-                logger.warning("Member not found in conversation: %s", turn_context.activity.from_property.id)
+                logger.warning(
+                    "Member not found in conversation: %s",
+                    turn_context.activity.from_property.id,
+                )
                 await turn_context.send_activity("Member not found.")
                 return
             else:
@@ -267,7 +280,9 @@ class TeamsConversationBot(TeamsActivityHandler):
                     conversation_reference, send_message, self._app_id
                 )
             else:
-                logger.debug("No conversation reference found for user: %s", member.name)
+                logger.debug(
+                    "No conversation reference found for user: %s", member.name
+                )
 
         logger.info("All messages sent to team members")
         await turn_context.send_activity(
