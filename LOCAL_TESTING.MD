@@ -1,0 +1,1 @@
+https://learn.microsoft.com/en-us/microsoft-365/agents-sdk/quickstart-python describes how to stand up the local test kit

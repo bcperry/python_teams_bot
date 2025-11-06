@@ -1,0 +1,19 @@
+[project]
+name = "bot-conversation-python"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "agent-framework>=1.0.0b251028",
+    "agent-framework-devui>=1.0.0b251028",
+    "azure-ai-agents>=1.2.0b5",
+    "botbuilder-integration-aiohttp>=4.14.5",
+    "fastapi[standard]>=0.121.0",
+    "requests==2.31.0",
+]
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.3.0",
+]
