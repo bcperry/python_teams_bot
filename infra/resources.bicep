@@ -38,6 +38,17 @@ param botAppDomain string
 @minLength(36)
 @maxLength(36)
 param botAadAppTenantId string
+
+@secure()
+@description('Azure OpenAI API Key')
+param azureOpenAiApiKey string
+
+@description('Azure OpenAI Endpoint')
+param azureOpenAiEndpoint string
+
+@description('Azure OpenAI Model Deployment Name')
+param azureOpenAiModel string
+
 var normalizedPlanSku = toUpper(appServicePlanSku)
 var standardPlanSkus = [
   'S1'
@@ -141,6 +152,18 @@ resource appService 'Microsoft.Web/sites@2022-03-01' = {
         {
           name: 'VALIDATE_AUTHORITY'
           value: 'true'
+        }
+        {
+          name: 'AZURE_OPENAI_API_KEY'
+          value: azureOpenAiApiKey
+        }
+        {
+          name: 'AZURE_OPENAI_ENDPOINT'
+          value: azureOpenAiEndpoint
+        }
+        {
+          name: 'AZURE_OPENAI_MODEL'
+          value: azureOpenAiModel
         }
       ]
     }

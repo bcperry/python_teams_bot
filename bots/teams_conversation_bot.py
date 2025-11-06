@@ -13,7 +13,11 @@ from botbuilder.schema.teams import TeamInfo, TeamsChannelAccount
 from botbuilder.schema._connector_client_enums import ActionTypes
 
 from agent_framework import MCPStreamableHTTPTool
-from agent_framework.openai import OpenAIChatClient
+from agent_framework.azure import AzureOpenAIChatClient
+
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -28,11 +32,10 @@ tool = MCPStreamableHTTPTool(
     # approval_mode={"never_require_approval": ["microsoft_docs_search"]},
 )
 
-llm = OpenAIChatClient(
-    api_key="ollama",  # Just a placeholder, Ollama doesn't require API key
-    # base_url="http://localhost:11434/v1",
-    base_url="http://ollama.home/v1",
-    model_id="gpt-oss:20b",
+llm = AzureOpenAIChatClient(
+    endpoint=os.environ.get("AZURE_OPENAI_ENDPOINT", ""),
+    deployment_name=os.environ.get("AZURE_OPENAI_MODEL", ""),
+    api_key=os.environ.get("AZURE_OPENAI_API_KEY", ""),
 )
 
 

@@ -25,6 +25,15 @@
       },
       "appServicePlanSku": {
         "value": "${APP_SERVICE_PLAN_SKU=B1}"
+      },
+      "azureOpenAiApiKey": {
+        "value": "${AZURE_OPENAI_API_KEY}"
+      },
+      "azureOpenAiEndpoint": {
+        "value": "${AZURE_OPENAI_ENDPOINT}"
+      },
+      "azureOpenAiModel": {
+        "value": "${AZURE_OPENAI_MODEL}"
       }
     }
   }

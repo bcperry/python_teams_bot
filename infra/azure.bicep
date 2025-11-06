@@ -28,6 +28,16 @@ param botServiceSku string = 'F0'
 @description('App Service SKU')
 param appServicePlanSku string = 'B1'
 
+@secure()
+@description('Azure OpenAI API Key')
+param azureOpenAiApiKey string
+
+@description('Azure OpenAI Endpoint')
+param azureOpenAiEndpoint string
+
+@description('Azure OpenAI Model Deployment Name')
+param azureOpenAiModel string
+
 // Variables
 var resourceGroupName = 'rg-${resourceBaseName}'
 var appServicePlanName = 'plan-${resourceBaseName}'
@@ -58,6 +68,9 @@ module resources 'resources.bicep' = {
     botAadAppClientSecret: botAadAppClientSecret
     botAadAppTenantId: botAadAppTenantId
     botAppDomain: botAppDomain
+    azureOpenAiApiKey: azureOpenAiApiKey
+    azureOpenAiEndpoint: azureOpenAiEndpoint
+    azureOpenAiModel: azureOpenAiModel
   }
 }
 
