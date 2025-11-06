@@ -3,6 +3,7 @@
 
 import os
 import json
+import logging
 
 from typing import List
 from botbuilder.core import CardFactory, TurnContext, MessageFactory
@@ -13,6 +14,9 @@ from botbuilder.schema._connector_client_enums import ActionTypes
 
 from agent_framework import MCPStreamableHTTPTool, MCPStdioTool
 from agent_framework.openai import OpenAIChatClient
+
+# Configure logger
+logger = logging.getLogger(__name__)
 
 ADAPTIVECARDTEMPLATE = "resources/UserMentionCardTemplate.json"
 
@@ -44,6 +48,7 @@ class TeamsConversationBot(TeamsActivityHandler):
     def __init__(self, app_id: str, app_password: str):
         self._app_id = app_id
         self._app_password = app_password
+        logger.info("TeamsConversationBot initialized with app_id: %s", app_id)
 
     async def on_teams_members_added(  # pylint: disable=unused-argument
         self,
@@ -51,6 +56,7 @@ class TeamsConversationBot(TeamsActivityHandler):
         team_info: TeamInfo,
         turn_context: TurnContext,
     ):
+        logger.info("New members added to team: %s", [m.name for m in teams_members_added])
         for member in teams_members_added:
             if member.id != turn_context.activity.recipient.id:
                 await turn_context.send_activity(
@@ -60,22 +66,29 @@ class TeamsConversationBot(TeamsActivityHandler):
     async def on_message_activity(self, turn_context: TurnContext):
         TurnContext.remove_recipient_mention(turn_context.activity)
         text = turn_context.activity.text.strip().lower()
-
+        
+        logger.info("Received message: '%s' from user: %s", 
+                   text, 
+                   turn_context.activity.from_property.name if turn_context.activity.from_property else "Unknown")
 
 
         if "mention me" in text:
+            logger.debug("Handling 'mention me' command")
             await self._mention_adaptive_card_activity(turn_context)
             return
 
         if "mention" in text:
+            logger.debug("Handling 'mention' command")
             await self._mention_activity(turn_context)
             return
 
         if "update" in text:
+            logger.debug("Handling 'update' command")
             await self._send_card(turn_context, True)
             return
 
         if "message" in text:
+            logger.debug("Handling 'message' command - messaging all members")
             # Save the conversation reference for proactive messaging
             conversation_reference = TurnContext.get_conversation_reference(
                 turn_context.activity
@@ -89,19 +102,24 @@ class TeamsConversationBot(TeamsActivityHandler):
             return
 
         if "who" in text:
+            logger.debug("Handling 'who' command")
             await self._get_member(turn_context)
             return
 
         if "delete" in text:
+            logger.debug("Handling 'delete' command")
             await self._delete_card_activity(turn_context)
             return
 
         if "test" in text:
+            logger.debug("Handling 'test' command")
             reply_activity = MessageFactory.text("back to you")
             await turn_context.send_activity(reply_activity)
             return
 
+        logger.info("Passing message to agent: '%s'", text)
         result = await agent.run(text)
+        logger.info("Agent response: '%s'", result.text)
         reply_activity = MessageFactory.text(result.text)
 
         await turn_context.send_activity(reply_activity)
@@ -112,11 +130,14 @@ class TeamsConversationBot(TeamsActivityHandler):
             member = await TeamsInfo.get_member(
                 turn_context, turn_context.activity.from_property.id
             )
+            logger.debug("Retrieved member info for adaptive card: %s", member.name)
         except Exception as e:
             if "MemberNotFoundInConversation" in e.args[0]:
+                logger.warning("Member not found in conversation: %s", turn_context.activity.from_property.id)
                 await turn_context.send_activity("Member not found.")
                 return
             else:
+                logger.error("Error retrieving member info: %s", str(e))
                 raise
 
         card_path = os.path.join(os.getcwd(), ADAPTIVECARDTEMPLATE)
@@ -215,16 +236,20 @@ class TeamsConversationBot(TeamsActivityHandler):
             member = await TeamsInfo.get_member(
                 turn_context, turn_context.activity.from_property.id
             )
+            logger.debug("Retrieved member info: %s", member.name)
         except Exception as e:
             if "MemberNotFoundInConversation" in e.args[0]:
+                logger.warning("Member not found in conversation")
                 await turn_context.send_activity("Member not found.")
             else:
+                logger.error("Error retrieving member info: %s", str(e))
                 raise
         else:
             await turn_context.send_activity(f"You are: {member.name}")
 
     async def _message_all_members(self, turn_context: TurnContext):
         team_members = await self._get_paged_members(turn_context)
+        logger.info("Messaging %d team members", len(team_members))
 
         for member in team_members:
             user_id = member.id
@@ -241,7 +266,10 @@ class TeamsConversationBot(TeamsActivityHandler):
                 await turn_context.adapter.continue_conversation(
                     conversation_reference, send_message, self._app_id
                 )
+            else:
+                logger.debug("No conversation reference found for user: %s", member.name)
 
+        logger.info("All messages sent to team members")
         await turn_context.send_activity(
             MessageFactory.text("All messages have been sent")
         )

@@ -3,9 +3,17 @@
 
 import sys
 import traceback
+import logging
 from datetime import datetime
 from fastapi import FastAPI, Request, Response
 import uvicorn
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
 
 from botbuilder.core import TurnContext
 from botbuilder.integration.aiohttp import (
