@@ -8,9 +8,12 @@ appManifest/build/
 
 # misc
 .env
+.env*
 .deployment/
 
 # tmp files
 __pycache__/
 
 .ruff*
+
+*.zip

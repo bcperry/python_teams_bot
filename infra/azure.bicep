@@ -20,7 +20,16 @@ param botAadAppTenantId string
 @maxLength(42)
 param botDisplayName string
 
-param location string = 'eastus'
+@description('Azure Developer environment name.')
+param environmentName string
+
+@description('Azure region for deployment.')
+@metadata({
+  azd: {
+    type: 'location'
+  }
+})
+param location string
 
 param botServiceName string = resourceBaseName
 param botServiceSku string = 'F0'
@@ -28,32 +37,61 @@ param botServiceSku string = 'F0'
 @description('App Service SKU')
 param appServicePlanSku string = 'B1'
 
+@description('Use existing OpenAI resources')
+param useExistingOpenAIResources bool = false
+
+@description('Openai Tokens per minute limit (only used when creating new OpenAI resources)')
+param openAiTokensPerMinute int = 10
+
 @secure()
-@description('Azure OpenAI API Key')
-param azureOpenAiApiKey string
+@description('Azure OpenAI API Key (required only if using existing resources)')
+param azureOpenAiApiKey string = ''
 
-@description('Azure OpenAI Endpoint')
-param azureOpenAiEndpoint string
+@description('Azure OpenAI Endpoint (required only if using existing resources)')
+param azureOpenAiEndpoint string = ''
 
-@description('Azure OpenAI Model Deployment Name')
-param azureOpenAiModel string
+@description('Azure OpenAI Model Deployment Name (required only if using existing resources)')
+param azureOpenAiModel string = ''
+
+@allowed(['AzureCloud', 'AzureUSGovernment'])
+@description('Cloud Deployment Location')
+param cloudLocation string
 
 // Variables
-var resourceGroupName = 'rg-${resourceBaseName}'
-var appServicePlanName = 'plan-${resourceBaseName}'
-var appServiceName = 'app-${resourceBaseName}'
+var resourceGroupName = 'rg-${environmentName}'
+var appServicePlanName = 'plan-${environmentName}'
+var appServiceName = 'app-${environmentName}'
 var appServiceDomainSuffix = environment().suffixes.storage == 'core.usgovcloudapi.net' ? 'azurewebsites.us' : 'azurewebsites.net'
 var botAppDomain = '${appServiceName}.${appServiceDomainSuffix}'
 
 // Resource Group
-resource resourceGroup 'Microsoft.Resources/resourceGroups@2021-04-01' = {
+resource resourceGroup 'Microsoft.Resources/resourceGroups@2022-09-01' = {
   name: resourceGroupName
   location: location
+  tags: {
+    'azd-env-name': environmentName
+  }
 }
 
-// Deploy resources into the resource group
-module resources 'resources.bicep' = {
-  name: 'resources-deployment'
+// Deploy new AI services only if NOT using existing resources
+module aiServices 'ai_services/resources.bicep' = if (!useExistingOpenAIResources) {
+  name: 'ai-services-deployment'
+  scope: resourceGroup
+  params: {
+    location: location
+    resourceToken: toLower(uniqueString(resourceGroup.id))
+    resourcePrefix: resourceBaseName
+    tags: {
+      'azd-env-name': environmentName
+    }
+    openAIModelName: !empty(azureOpenAiModel) ? azureOpenAiModel : 'gpt-4o'
+    openAIAPIVersion: '2024-10-01'
+    openAITPMCapacity: openAiTokensPerMinute
+  }
+}
+
+module app_services 'app_services/resources.bicep' = {
+  name: 'app-services-deployment'
   scope: resourceGroup
   params: {
     location: location
@@ -61,16 +99,28 @@ module resources 'resources.bicep' = {
     appServicePlanName: appServicePlanName
     appServicePlanSku: appServicePlanSku
     appServiceName: appServiceName
+    azureOpenAiApiKey: aiServices.outputs.azureOpenAiApiKey != '' ? aiServices.outputs.azureOpenAiApiKey : azureOpenAiApiKey
+    azureOpenAiEndpoint: aiServices.outputs.azureOpenAiEndpoint != '' ? aiServices.outputs.azureOpenAiEndpoint : azureOpenAiEndpoint
+    azureOpenAiModel: aiServices.outputs.azureOpenAiModel != '' ? aiServices.outputs.azureOpenAiModel :  azureOpenAiModel
+    botAadAppClientId: botAadAppClientId
+    botAadAppTenantId: botAadAppTenantId
+    botAadAppClientSecret: botAadAppClientSecret
+    cloudLocation: cloudLocation
+
+  }
+}
+
+// Deploy resources into the resource group
+module resources 'bot_services/resources.bicep' = {
+  name: 'resources-deployment'
+  scope: resourceGroup
+  params: {
+    botAadAppClientId: botAadAppClientId
+    botAadAppTenantId: botAadAppTenantId
     botServiceName: botServiceName
     botServiceSku: botServiceSku
     botDisplayName: botDisplayName
-    botAadAppClientId: botAadAppClientId
-    botAadAppClientSecret: botAadAppClientSecret
-    botAadAppTenantId: botAadAppTenantId
     botAppDomain: botAppDomain
-    azureOpenAiApiKey: azureOpenAiApiKey
-    azureOpenAiEndpoint: azureOpenAiEndpoint
-    azureOpenAiModel: azureOpenAiModel
   }
 }
 

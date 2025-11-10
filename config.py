@@ -16,8 +16,14 @@ class DefaultConfig:
     APP_TYPE = os.environ.get("MicrosoftAppType", "")
     APP_TENANTID = os.environ.get("MicrosoftAppTenantId", "")
 
-    # Azure Government Cloud Settings
-    CHANNEL_SERVICE = os.environ.get("CHANNEL_SERVICE", "https://botframework.azure.us")
+    # Cloud Settings
+    CLOUD_LOCATION = os.environ.get("CLOUD_LOCATION", "AzureCloud")
+
+    if CLOUD_LOCATION != "AzureCloud":
+        # Azure Government Cloud Settings
+        CHANNEL_SERVICE = os.environ.get(
+            "CHANNEL_SERVICE", "https://botframework.azure.us"
+        )
 
     # for GCC-High
     # OAUTH_URL = os.environ.get("OAUTH_URL", "https://tokengcch.botframework.azure.us/")

@@ -13,14 +13,6 @@ param appServicePlanSku string
 @description('App Service name')
 param appServiceName string
 
-@description('Bot Service name')
-param botServiceName string
-
-@description('Bot Service SKU')
-param botServiceSku string
-
-@description('Bot Display Name')
-param botDisplayName string
 
 @description('Bot Azure AD App Client ID')
 @minLength(36)
@@ -30,9 +22,6 @@ param botAadAppClientId string
 @secure()
 @description('Bot Azure AD App Client Secret')
 param botAadAppClientSecret string
-
-@description('Bot App Domain')
-param botAppDomain string
 
 @description('Bot Azure AD App Tenant ID')
 @minLength(36)
@@ -60,6 +49,10 @@ var premiumV2PlanSkus = [
   'P2V2'
   'P3V2'
 ]
+
+@allowed(['AzureCloud', 'AzureUSGovernment'])
+@description('Cloud Deployment Location')
+param cloudLocation string
 
 // App Service Plan
 resource appServicePlan 'Microsoft.Web/serverfarms@2022-03-01' = {
@@ -112,6 +105,9 @@ resource appService 'Microsoft.Web/sites@2022-03-01' = {
         {
           name: 'SCM_DO_BUILD_DURING_DEPLOYMENT'
           value: 'true'
+        }
+        {name: 'CLOUD_LOCATION'
+          value: cloudLocation
         }
         {
           name: 'WEBSITE_HTTPLOGGING_RETENTION_DAYS'
@@ -189,33 +185,8 @@ resource appServiceLogs 'Microsoft.Web/sites/config@2022-03-01' = {
   }
 }
 
-// Register your web service as a bot with the Bot Framework
-// NOTE: Bot Service creation may fail in Azure Government cloud
-// If deployment fails, create the Bot Service manually in the portal
-// or use: az bot create --name bot-service --resource-group rg-bot-service --kind azurebot --app-type SingleTenant --appid <your-app-id> --endpoint https://app-bot-service.azurewebsites.net/api/messages
-
-
-resource botService 'Microsoft.BotService/botServices@2022-09-15' = {
-  name: botServiceName
-  sku: {
-    name: botServiceSku
-  }
-  kind: 'azurebot'
-  location: 'global'
-  properties: {
-    displayName: botDisplayName
-    endpoint: 'https://${botAppDomain}/api/messages'
-    msaAppType: 'SingleTenant'
-    msaAppId: botAadAppClientId
-    msaAppTenantId: botAadAppTenantId
-    tenantId: botAadAppTenantId
-  }
-}
-
-
 // Outputs
 output appServicePlanId string = appServicePlan.id
 output appServiceId string = appService.id
 output appServiceName string = appService.name
 output appServiceHostName string = appService.properties.defaultHostName
-// output botServiceId string = botService.id
