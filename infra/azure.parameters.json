@@ -24,7 +24,7 @@
         "value": "${botAadAppTenantId}"
       },
       "botDisplayName": {
-        "value": "TeamsConversationBot"
+        "value": "General's Aide Bot"
       },
       "botServiceSku": {
         "value": "${BOT_SERVICE_SKU=S1}"

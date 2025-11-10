@@ -130,3 +130,7 @@ output AZURE_RESOURCE_GROUP string = resourceGroupName
 output APP_SERVICE_NAME string = appServiceName
 output BOT_DOMAIN string = botAppDomain
 output BOT_ENDPOINT string = 'https://${botAppDomain}/api/messages'
+output MicrosoftAppId string = botAadAppClientId
+output MicrosoftAppType string = 'SingleTenant'
+output MicrosoftAppTenantId string = botAadAppTenantId
+output MicrosoftAppPassword string = botAadAppClientSecret

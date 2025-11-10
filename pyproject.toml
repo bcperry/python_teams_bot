@@ -10,6 +10,7 @@ dependencies = [
     "azure-ai-agents>=1.2.0b5",
     "botbuilder-integration-aiohttp>=4.14.5",
     "fastapi[standard]>=0.121.0",
+    "python-dotenv>=1.2.1",
     "requests==2.31.0",
 ]
 

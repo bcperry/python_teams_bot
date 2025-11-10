@@ -2,6 +2,7 @@
 env/.env.*.user
 env/.env.local
 appManifest/build/
+appPackage/
 
 # python virtual environment
 .venv/

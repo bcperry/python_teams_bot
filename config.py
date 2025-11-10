@@ -4,6 +4,16 @@
 
 import os
 
+# Optionally load environment variables from .env file for local development
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv(".azure/commercial/.env")
+    print("loaded .azure/commercial/.env file")
+except ImportError:
+    # python-dotenv not installed, skip loading .env file
+    pass
+
 """ Bot Configuration """
 
 
