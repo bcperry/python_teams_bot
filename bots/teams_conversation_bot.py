@@ -69,9 +69,7 @@ class TeamsConversationBot(TeamsActivityHandler):
         )
         for member in teams_members_added:
             if member.id != turn_context.activity.recipient.id:
-                await turn_context.send_activity(
-                    f"Welcome to the team {member.given_name} {member.surname}. "
-                )
+                await turn_context.send_activity(f"Welcome to the team {member.name}. ")
 
     async def on_message_activity(self, turn_context: TurnContext):
         TurnContext.remove_recipient_mention(turn_context.activity)
@@ -123,19 +121,20 @@ class TeamsConversationBot(TeamsActivityHandler):
             logger.debug("Handling 'delete' command")
             await self._delete_card_activity(turn_context)
             return
-
         if "test" in text:
             logger.debug("Handling 'test' command")
             reply_activity = MessageFactory.text("back to you")
             await turn_context.send_activity(reply_activity)
             return
 
+        await self._send_card(turn_context, False)
         logger.info("Passing message to agent: '%s'", text)
         result = await agent.run(text, thread=thread)
         logger.info("Agent response: '%s'", result.text)
         reply_activity = MessageFactory.text(result.text)
 
         await turn_context.send_activity(reply_activity)
+
         return
 
     async def _mention_adaptive_card_activity(self, turn_context: TurnContext):
