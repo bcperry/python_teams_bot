@@ -4,11 +4,11 @@
 import os
 import json
 import logging
+from datetime import datetime
 
-from typing import List
 from botbuilder.core import CardFactory, TurnContext, MessageFactory
-from botbuilder.core.teams import TeamsActivityHandler, TeamsInfo
-from botbuilder.schema import CardAction, HeroCard, Mention, Activity
+from botbuilder.core.teams import TeamsActivityHandler
+from botbuilder.schema import CardAction, HeroCard
 from botbuilder.schema.teams import TeamInfo, TeamsChannelAccount
 from botbuilder.schema._connector_client_enums import ActionTypes
 
@@ -72,7 +72,8 @@ class TeamsConversationBot(TeamsActivityHandler):
                 await turn_context.send_activity(f"Welcome to the team {member.name}. ")
 
     async def on_message_activity(self, turn_context: TurnContext):
-        TurnContext.remove_recipient_mention(turn_context.activity)
+        logger.info(f"Message activity received: {turn_context.activity.from_property}")
+        # TurnContext.remove_recipient_mention(turn_context.activity)
         text = turn_context.activity.text.strip().lower()
 
         logger.info(
@@ -83,53 +84,36 @@ class TeamsConversationBot(TeamsActivityHandler):
             else "Unknown",
         )
 
-        if "mention me" in text:
-            logger.debug("Handling 'mention me' command")
-            await self._mention_adaptive_card_activity(turn_context)
-            return
-
-        if "mention" in text:
-            logger.debug("Handling 'mention' command")
-            await self._mention_activity(turn_context)
-            return
-
-        if "update" in text:
-            logger.debug("Handling 'update' command")
-            await self._send_card(turn_context, True)
-            return
-
-        if "message" in text:
-            logger.debug("Handling 'message' command - messaging all members")
-            # Save the conversation reference for proactive messaging
-            conversation_reference = TurnContext.get_conversation_reference(
-                turn_context.activity
-            )
-            user_id = turn_context.activity.from_property.id
-            TeamsConversationBot.conversation_references[user_id] = (
-                conversation_reference
-            )
-
-            await self._message_all_members(turn_context)
-            return
-
-        if "who" in text:
-            logger.debug("Handling 'who' command")
-            await self._get_member(turn_context)
-            return
-
-        if "delete" in text:
-            logger.debug("Handling 'delete' command")
-            await self._delete_card_activity(turn_context)
-            return
-        if "test" in text:
-            logger.debug("Handling 'test' command")
-            reply_activity = MessageFactory.text("back to you")
+        if "start_analyze_email" in text:
+            logger.debug("Handling 'start_analyze_email' command")
+            reply_activity = MessageFactory.text("Analyzing email...")
             await turn_context.send_activity(reply_activity)
+
+            logger.info("Passing message to agent: '%s'", text)
+            result = await agent.run(text, thread=thread)
+            reply_activity = MessageFactory.text(result.text)
+
+            await turn_context.send_activity(reply_activity)
+
+            return
+        if "get card" in text:
+            logger.debug("Handling 'card' command")
+            await self._send_card(turn_context)
+
             return
 
-        await self._send_card(turn_context, False)
         logger.info("Passing message to agent: '%s'", text)
         result = await agent.run(text, thread=thread)
+
+        # Pretty print the agent result
+        try:
+            json_obj = json.loads(result.to_json())
+            pretty_json = json.dumps(json_obj, indent=2)
+            logger.info("Agent result (JSON):\n%s", pretty_json)
+        except (json.JSONDecodeError, Exception) as e:
+            logger.info("Agent result: %s", result.to_json())
+            logger.debug("Failed to pretty print result: %s", e)
+
         logger.info("Agent response: '%s'", result.text)
         reply_activity = MessageFactory.text(result.text)
 
@@ -137,177 +121,29 @@ class TeamsConversationBot(TeamsActivityHandler):
 
         return
 
-    async def _mention_adaptive_card_activity(self, turn_context: TurnContext):
-        try:
-            member = await TeamsInfo.get_member(
-                turn_context, turn_context.activity.from_property.id
-            )
-            logger.debug("Retrieved member info for adaptive card: %s", member.name)
-        except Exception as e:
-            if "MemberNotFoundInConversation" in e.args[0]:
-                logger.warning(
-                    "Member not found in conversation: %s",
-                    turn_context.activity.from_property.id,
-                )
-                await turn_context.send_activity("Member not found.")
-                return
-            else:
-                logger.error("Error retrieving member info: %s", str(e))
-                raise
-
-        card_path = os.path.join(os.getcwd(), ADAPTIVECARDTEMPLATE)
-        with open(card_path, "rb") as in_file:
-            template_json = json.load(in_file)
-
-        for t in template_json["body"]:
-            t["text"] = t["text"].replace("${userName}", member.name)
-        for e in template_json["msteams"]["entities"]:
-            e["text"] = e["text"].replace("${userName}", member.name)
-            e["mentioned"]["id"] = e["mentioned"]["id"].replace(
-                "${userUPN}", member.user_principal_name
-            )
-            e["mentioned"]["id"] = e["mentioned"]["id"].replace(
-                "${userAAD}", member.aad_object_id
-            )
-            e["mentioned"]["name"] = e["mentioned"]["name"].replace(
-                "${userName}", member.name
-            )
-
-        adaptive_card_attachment = Activity(
-            attachments=[CardFactory.adaptive_card(template_json)]
-        )
-        await turn_context.send_activity(adaptive_card_attachment)
-
-    async def _mention_activity(self, turn_context: TurnContext):
-        mention = Mention(
-            mentioned=turn_context.activity.from_property,
-            text=f"<at>{turn_context.activity.from_property.name}</at>",
-            type="mention",
-        )
-
-        reply_activity = MessageFactory.text(f"Hello {mention.text}")
-        reply_activity.entities = [Mention().deserialize(mention.serialize())]
-        await turn_context.send_activity(reply_activity)
-
-    async def _send_card(self, turn_context: TurnContext, isUpdate):
+    async def _send_card(self, turn_context: TurnContext):
         buttons = [
             CardAction(
                 type=ActionTypes.message_back,
-                title="Message all members",
-                text="messageallmembers",
-            ),
-            CardAction(type=ActionTypes.message_back, title="Who am I?", text="whoami"),
-            CardAction(
-                type=ActionTypes.message_back,
-                title="Find me in Adaptive Card",
-                text="mention me",
-            ),
-            CardAction(
-                type=ActionTypes.message_back, title="Delete card", text="deletecard"
+                title="Analyze Email",  # this is the button text shown to user
+                text="start_analyze_email",  # this text is not displayed to user, it is sent back to bot when button is clicked
             ),
         ]
-        if isUpdate:
-            await self._send_update_card(turn_context, buttons)
-        else:
-            await self._send_welcome_card(turn_context, buttons)
 
-    async def _send_welcome_card(self, turn_context: TurnContext, buttons):
-        buttons.append(
-            CardAction(
-                type=ActionTypes.message_back,
-                title="Update Card",
-                text="updatecardaction",
-                value={"count": 0},
-            )
-        )
+        # Determine greeting based on current time
+        current_hour = datetime.now().hour
+        if current_hour < 12:
+            greeting = f"Good morning, {turn_context.activity.from_property.name}"
+        elif current_hour < 18:
+            greeting = f"Good afternoon, {turn_context.activity.from_property.name}"
+        else:
+            greeting = f"Good evening, {turn_context.activity.from_property.name}"
+
         card = HeroCard(
-            title="Welcome Card", text="Click the buttons.", buttons=buttons
+            title=greeting,
+            text="Use the Buttons to perform Actions or type your own message to interact with the agent.  I will use the tools at my disposal to assist you.",
+            buttons=buttons,
         )
         await turn_context.send_activity(
             MessageFactory.attachment(CardFactory.hero_card(card))
         )
-
-    async def _send_update_card(self, turn_context: TurnContext, buttons):
-        data = turn_context.activity.value
-        data["count"] += 1
-        buttons.append(
-            CardAction(
-                type=ActionTypes.message_back,
-                title="Update Card",
-                text="updatecardaction",
-                value=data,
-            )
-        )
-        card = HeroCard(
-            title="Updated card", text=f"Update count {data['count']}", buttons=buttons
-        )
-
-        updated_activity = MessageFactory.attachment(CardFactory.hero_card(card))
-        updated_activity.id = turn_context.activity.reply_to_id
-        await turn_context.update_activity(updated_activity)
-
-    async def _get_member(self, turn_context: TurnContext):
-        try:
-            member = await TeamsInfo.get_member(
-                turn_context, turn_context.activity.from_property.id
-            )
-            logger.debug("Retrieved member info: %s", member.name)
-        except Exception as e:
-            if "MemberNotFoundInConversation" in e.args[0]:
-                logger.warning("Member not found in conversation")
-                await turn_context.send_activity("Member not found.")
-            else:
-                logger.error("Error retrieving member info: %s", str(e))
-                raise
-        else:
-            await turn_context.send_activity(f"You are: {member.name}")
-
-    async def _message_all_members(self, turn_context: TurnContext):
-        team_members = await self._get_paged_members(turn_context)
-        logger.info("Messaging %d team members", len(team_members))
-
-        for member in team_members:
-            user_id = member.id
-            conversation_reference = TeamsConversationBot.conversation_references.get(
-                user_id
-            )
-            if conversation_reference:
-
-                async def send_message(tc: TurnContext):
-                    await tc.send_activity(
-                        f"Hello {member.name}. I'm a Teams conversation bot."
-                    )
-
-                await turn_context.adapter.continue_conversation(
-                    conversation_reference, send_message, self._app_id
-                )
-            else:
-                logger.debug(
-                    "No conversation reference found for user: %s", member.name
-                )
-
-        logger.info("All messages sent to team members")
-        await turn_context.send_activity(
-            MessageFactory.text("All messages have been sent")
-        )
-
-    async def _get_paged_members(
-        self, turn_context: TurnContext
-    ) -> List[TeamsChannelAccount]:
-        paged_members = []
-        continuation_token = None
-
-        while True:
-            current_page = await TeamsInfo.get_paged_members(
-                turn_context, continuation_token, 100
-            )
-            continuation_token = current_page.continuation_token
-            paged_members.extend(current_page.members)
-
-            if continuation_token is None:
-                break
-
-        return paged_members
-
-    async def _delete_card_activity(self, turn_context: TurnContext):
-        await turn_context.delete_activity(turn_context.activity.reply_to_id)
