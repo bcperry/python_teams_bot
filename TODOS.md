@@ -1,0 +1,1 @@
+https://github.com/microsoft/BotBuilder-Samples/tree/main/samples/python/24.bot-authentication-msgraph Add Auth to see if I can get an OBO for the MCP server   

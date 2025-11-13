@@ -78,7 +78,7 @@ ADAPTER.on_turn_error = on_error
 # Create the Bot
 BOT = TeamsConversationBot(CONFIG.APP_ID, CONFIG.APP_PASSWORD)
 
-app = FastAPI()
+app = FastAPI(title="Azure Bot Service")
 
 
 @app.post("/api/messages")

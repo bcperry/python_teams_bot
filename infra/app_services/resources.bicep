@@ -98,6 +98,9 @@ resource appService 'Microsoft.Web/sites@2022-03-01' = {
           name: 'MicrosoftAppType'
           value: 'SingleTenant'
         }
+        {name: 'graphUserScopes'
+          value: 'User.Read'
+        }
         {
           name: 'MicrosoftAppTenantId'
           value: botAadAppTenantId

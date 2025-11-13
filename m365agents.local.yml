@@ -86,3 +86,4 @@ deploy:
         MicrosoftAppPassword: ${{SECRET_AAD_APP_CLIENT_SECRET}}
         MicrosoftAppType: SingleTenant
         MicrosoftAppTenantId: ${{AAD_APP_TENANT_ID}}
+        graphUserScopes: "User.Read"

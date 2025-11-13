@@ -24,9 +24,17 @@ logger = logging.getLogger(__name__)
 
 ADAPTIVECARDTEMPLATE = "resources/UserMentionCardTemplate.json"
 
+# tool = MCPStreamableHTTPTool(
+#     name="Microsoft Learn MCP",
+#     url="https://learn.microsoft.com/api/mcp",
+#     # we don't require approval for microsoft_docs_search tool calls
+#     # but we do for any other tool
+#     # approval_mode={"never_require_approval": ["microsoft_docs_search"]},
+# )
+
 tool = MCPStreamableHTTPTool(
-    name="Microsoft Learn MCP",
-    url="https://learn.microsoft.com/api/mcp",
+    name="MS Graph",
+    url="http://localhost:8000/mcp",
     # we don't require approval for microsoft_docs_search tool calls
     # but we do for any other tool
     # approval_mode={"never_require_approval": ["microsoft_docs_search"]},
